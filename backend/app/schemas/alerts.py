@@ -20,3 +20,9 @@ class AlertOut(BaseModel):
 class AlertStatusUpdate(BaseModel):
     status: str
 
+
+class AlertListResponse(BaseModel):
+    items: list[AlertOut]
+    total: int
+    page: int
+    page_size: int

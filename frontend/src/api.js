@@ -1,5 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
+function withQuery(path, params = {}) {
+  const search = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "" || value === "all") return;
+    search.set(key, String(value));
+  });
+
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, options);
   if (!response.ok) {
@@ -7,6 +19,27 @@ async function request(path, options = {}) {
     throw new Error(body || `Request failed with status ${response.status}`);
   }
   return response.json();
+}
+
+async function download(path, token, filename, params = {}) {
+  const response = await fetch(`${API_BASE_URL}${withQuery(path, params)}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || `Request failed with status ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export async function login(email, password) {
@@ -35,8 +68,8 @@ export async function fetchLiveTraffic(token) {
   });
 }
 
-export async function fetchAlerts(token) {
-  return request("/alerts", {
+export async function fetchAlerts(token, filters = {}) {
+  return request(withQuery("/alerts", filters), {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
@@ -47,8 +80,14 @@ export async function fetchDailyReport(token) {
   });
 }
 
-export async function fetchPredictionHistory(token) {
-  return request("/predict/history", {
+export async function fetchAnalyticsReport(token, hours = 12) {
+  return request(`/reports/analytics?hours=${hours}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function fetchPredictionHistory(token, filters = {}) {
+  return request(withQuery("/predict/history", filters), {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
@@ -73,4 +112,16 @@ export async function updateAlertStatus(token, alertId, status) {
     },
     body: JSON.stringify({ status })
   });
+}
+
+export async function downloadAlertsReport(token, filters = {}) {
+  return download("/reports/export/alerts", token, "nids-alerts-report.csv", filters);
+}
+
+export async function downloadPredictionsReport(token, filters = {}) {
+  return download("/reports/export/predictions", token, "nids-predictions-report.csv", filters);
+}
+
+export async function downloadAnalyticsReport(token, hours = 12) {
+  return download(`/reports/export/analytics?hours=${hours}`, token, `nids-analytics-${hours}h.csv`);
 }

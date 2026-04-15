@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  downloadAlertsReport,
+  downloadAnalyticsReport,
+  downloadPredictionsReport,
   fetchAlerts,
+  fetchAnalyticsReport,
   fetchDailyReport,
   fetchDashboardSummary,
   fetchLiveTraffic,
@@ -12,7 +16,6 @@ import {
 } from "./api";
 import {
   alertRows,
-  chartValues,
   feedItems,
   navItems
 } from "./data";
@@ -43,11 +46,17 @@ export default function App() {
   const [alertSeverityFilter, setAlertSeverityFilter] = useState("all");
   const [alertStatusFilter, setAlertStatusFilter] = useState("all");
   const [historyLabelFilter, setHistoryLabelFilter] = useState("all");
+  const [analyticsWindow, setAnalyticsWindow] = useState("12");
+  const [alertsPage, setAlertsPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
   const [summary, setSummary] = useState(null);
   const [liveRecords, setLiveRecords] = useState([]);
   const [alerts, setAlerts] = useState(alertRows);
   const [predictionHistory, setPredictionHistory] = useState([]);
+  const [alertsMeta, setAlertsMeta] = useState({ total: 0, page: 1, page_size: 10 });
+  const [historyMeta, setHistoryMeta] = useState({ total: 0, page: 1, page_size: 10 });
   const [report, setReport] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [authForm, setAuthForm] = useState({
     email: "admin@nidsdemo.com",
     password: "admin123"
@@ -158,39 +167,57 @@ export default function App() {
     ];
   }, [profile?.name, report, summary]);
 
-  const filteredAlerts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return alerts.filter((row) => {
-      const matchesQuery = !normalized || Object.values(row).some((value) =>
-        String(value).toLowerCase().includes(normalized)
-      );
-      const matchesSeverity =
-        alertSeverityFilter === "all" || row.severity === alertSeverityFilter;
-      const matchesStatus =
-        alertStatusFilter === "all" || row.status.toLowerCase() === alertStatusFilter;
+  const filteredAlerts = alerts;
 
-      return matchesQuery && matchesSeverity && matchesStatus;
-    });
-  }, [alerts, alertSeverityFilter, alertStatusFilter, query]);
-
-  const filteredHistory = useMemo(() => {
-    return predictionHistory.filter((row) => {
-      if (historyLabelFilter === "all") return true;
-      return row.predicted_label === historyLabelFilter;
-    });
-  }, [historyLabelFilter, predictionHistory]);
+  const filteredHistory = predictionHistory;
 
   const chartPoints = useMemo(() => {
-    if (!alerts.length) return chartValues;
+    if (!analytics?.timeline?.length) {
+      return Array.from({ length: 12 }, (_, index) => ({
+        label: `${String(index * 2).padStart(2, "0")}:00`,
+        count: 0,
+        malicious_count: 0,
+        chartValue: 18
+      }));
+    }
 
-    const source = alerts
-      .slice(0, 12)
-      .map((item) => severityToChartValue(item.severity))
-      .reverse();
+    const source = analytics.timeline.map((item) => ({
+      ...item,
+      chartValue: countToChartValue(item.count)
+    }));
 
-    while (source.length < 12) source.unshift(38);
-    return source;
-  }, [alerts]);
+    return source.every((item) => item.chartValue === 18)
+      ? source.map((item) => ({ ...item, chartValue: 26 }))
+      : source;
+  }, [analytics]);
+
+  const chartAxisLabels = useMemo(() => {
+    if (!analytics?.timeline?.length) {
+      return ["00", "04", "08", "12", "16", "20"];
+    }
+
+    return analytics.timeline
+      .filter((_, index) => {
+        const interval = analytics.timeline.length > 24 ? 6 : analytics.timeline.length > 12 ? 4 : 2;
+        return index % interval === 0;
+      })
+      .map((item) => item.label.slice(0, 2));
+  }, [analytics]);
+
+  const attackHighlights = useMemo(() => {
+    const entries = Object.entries(analytics?.attack_distribution || {});
+    if (!entries.length) {
+      return [
+        { label: "Normal Window", value: "No attacks detected" },
+        { label: "Timeline", value: "Awaiting predictions" },
+      ];
+    }
+
+    return entries
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([label, value]) => ({ label, value: `${value} events` }));
+  }, [analytics]);
 
   const displayFeed = useMemo(() => {
     if (!liveRecords.length) return feedItems;
@@ -213,25 +240,41 @@ export default function App() {
     });
   }, [liveRecords]);
 
-  async function loadBackendData(currentToken) {
+  const baseFilters = useMemo(() => ({ q: query }), [query]);
+  const alertFilters = useMemo(() => ({
+    ...baseFilters,
+    severity: alertSeverityFilter,
+    status: alertStatusFilter,
+    page: alertsPage,
+    page_size: 10
+  }), [alertSeverityFilter, alertStatusFilter, alertsPage, baseFilters]);
+  const historyFilters = useMemo(() => ({
+    ...baseFilters,
+    label: historyLabelFilter,
+    page: historyPage,
+    page_size: 10
+  }), [baseFilters, historyLabelFilter, historyPage]);
+
+  async function loadBackendData(currentToken, selectedWindow = analyticsWindow) {
     setLoadingData(true);
     setError("");
 
     try {
-      const [profileData, summaryData, liveData, alertsData, reportData, historyData] = await Promise.all([
+      const [profileData, summaryData, liveData, alertsData, reportData, historyData, analyticsData] = await Promise.all([
         fetchProfile(currentToken),
         fetchDashboardSummary(currentToken),
         fetchLiveTraffic(currentToken),
-        fetchAlerts(currentToken),
+        fetchAlerts(currentToken, alertFilters),
         fetchDailyReport(currentToken),
-        fetchPredictionHistory(currentToken)
+        fetchPredictionHistory(currentToken, historyFilters),
+        fetchAnalyticsReport(currentToken, Number(selectedWindow))
       ]);
 
       setProfile(profileData);
       setSummary(summaryData);
       setLiveRecords(liveData);
       setAlerts(
-        alertsData.map((item) => ({
+        alertsData.items.map((item) => ({
           id: item.id,
           time: new Date(item.created_at).toLocaleTimeString(),
           source: item.source_ip,
@@ -240,8 +283,19 @@ export default function App() {
           status: item.status
         }))
       );
+      setAlertsMeta({
+        total: alertsData.total,
+        page: alertsData.page,
+        page_size: alertsData.page_size
+      });
       setReport(reportData);
-      setPredictionHistory(historyData);
+      setPredictionHistory(historyData.items);
+      setHistoryMeta({
+        total: historyData.total,
+        page: historyData.page,
+        page_size: historyData.page_size
+      });
+      setAnalytics(analyticsData);
       setLastUpdatedAt(new Date());
     } catch (err) {
       setError(parseError(err));
@@ -313,10 +367,74 @@ export default function App() {
     }
   }
 
+  function downloadCsv(filename, rows) {
+    if (!rows.length) return;
+
+    const columns = Object.keys(rows[0]);
+    const csvContent = [
+      columns.join(","),
+      ...rows.map((row) =>
+        columns
+          .map((column) => `"${String(row[column] ?? "").replaceAll('"', '""')}"`)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportAlerts() {
+    if (!token) return;
+
+    try {
+      await downloadAlertsReport(token, alertFilters);
+    } catch (err) {
+      setError(parseError(err));
+    }
+  }
+
+  async function exportHistory() {
+    if (!token) return;
+
+    try {
+      await downloadPredictionsReport(token, historyFilters);
+    } catch (err) {
+      setError(parseError(err));
+    }
+  }
+
+  async function exportAnalytics() {
+    if (!token) return;
+
+    try {
+      await downloadAnalyticsReport(token, Number(analyticsWindow));
+    } catch (err) {
+      setError(parseError(err));
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
     loadBackendData(token);
-  }, [token]);
+  }, [
+    alertSeverityFilter,
+    alertStatusFilter,
+    analyticsWindow,
+    alertsPage,
+    historyLabelFilter,
+    historyPage,
+    query,
+    token
+  ]);
 
   useEffect(() => {
     if (!token) return undefined;
@@ -326,7 +444,24 @@ export default function App() {
     }, 15000);
 
     return () => window.clearInterval(intervalId);
-  }, [token]);
+  }, [
+    alertSeverityFilter,
+    alertStatusFilter,
+    analyticsWindow,
+    alertsPage,
+    historyLabelFilter,
+    historyPage,
+    query,
+    token
+  ]);
+
+  useEffect(() => {
+    setAlertsPage(1);
+  }, [alertSeverityFilter, alertStatusFilter, query]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyLabelFilter, query]);
 
   return (
     <div className="shell">
@@ -474,6 +609,18 @@ export default function App() {
               <option value="malicious">Malicious</option>
             </select>
           </label>
+          <label>
+            Analytics Window
+            <select
+              onChange={(event) => setAnalyticsWindow(event.target.value)}
+              value={analyticsWindow}
+            >
+              <option value="12">Last 12 Hours</option>
+              <option value="24">Last 24 Hours</option>
+              <option value="48">Last 48 Hours</option>
+              <option value="72">Last 72 Hours</option>
+            </select>
+          </label>
         </section>
 
         <section className="hero">
@@ -512,20 +659,50 @@ export default function App() {
                 <p className="eyebrow">Traffic Timeline</p>
                 <h3>Detection intensity</h3>
               </div>
-              <span className="pill warning">High Activity</span>
+              <span className="pill warning">
+                {analytics
+                  ? `${analytics.malicious_prediction_count || 0} flagged in ${analytics.window_hours}h`
+                  : "High Activity"}
+              </span>
             </div>
-            <div aria-label="Traffic detection chart" className="chart-bars">
-              {chartPoints.map((value, index) => (
-                <span key={`${value}-${index}`} style={{ "--value": value }} />
-              ))}
+            <div className="panel-actions chart-actions">
+              <button className="ghost-button small" onClick={exportAnalytics} type="button">
+                Export Analytics CSV
+              </button>
+            </div>
+            <div className="chart-stage">
+              <div aria-label="Traffic detection chart" className="chart-bars">
+                {chartPoints.map((item) => (
+                  <div className="chart-bar-wrap" key={item.hour || item.label}>
+                    <button
+                      aria-label={`${item.label} with ${item.count} predictions`}
+                      className="chart-bar-button"
+                      style={{ "--value": item.chartValue }}
+                      title={`${item.label} | Predictions: ${item.count} | Malicious: ${item.malicious_count}`}
+                      type="button"
+                    />
+                    <div className="chart-tooltip" role="status">
+                      <span className="eyebrow">Time Slot</span>
+                      <strong>{item.label}</strong>
+                      <p>Predictions: {item.count}</p>
+                      <p>Malicious: {item.malicious_count}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="chart-axis">
-              <span>00</span>
-              <span>04</span>
-              <span>08</span>
-              <span>12</span>
-              <span>16</span>
-              <span>20</span>
+              {chartAxisLabels.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+            <div className="chart-highlights">
+              {attackHighlights.map((item) => (
+                <article className="chart-highlight" key={item.label}>
+                  <span className="eyebrow">{item.label}</span>
+                  <strong>{item.value}</strong>
+                </article>
+              ))}
             </div>
           </article>
 
@@ -669,8 +846,8 @@ export default function App() {
                 <p className="eyebrow">Alert Queue</p>
                 <h3>Incident review</h3>
               </div>
-              <button className="ghost-button small" type="button">
-                Filter
+              <button className="ghost-button small" onClick={exportAlerts} type="button">
+                Export CSV
               </button>
             </div>
             <div className="table-wrap">
@@ -710,6 +887,29 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+            <div className="table-pagination">
+              <span className="mono">
+                Page {alertsMeta.page} of {Math.max(1, Math.ceil(alertsMeta.total / alertsMeta.page_size))}
+              </span>
+              <div className="panel-actions">
+                <button
+                  className="ghost-button small"
+                  disabled={alertsMeta.page <= 1}
+                  onClick={() => setAlertsPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  Previous
+                </button>
+                <button
+                  className="ghost-button small"
+                  disabled={alertsMeta.page >= Math.ceil(alertsMeta.total / alertsMeta.page_size)}
+                  onClick={() => setAlertsPage((current) => current + 1)}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </article>
 
           <article className="panel">
@@ -735,7 +935,12 @@ export default function App() {
                 <p className="eyebrow">Prediction History</p>
                 <h3>Recent inference decisions</h3>
               </div>
-              <span className="mono">GET /predict/history</span>
+              <div className="panel-actions">
+                <span className="mono">GET /predict/history</span>
+                <button className="ghost-button small" onClick={exportHistory} type="button">
+                  Export CSV
+                </button>
+              </div>
             </div>
             <div className="table-wrap">
               <table>
@@ -761,6 +966,29 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+            <div className="table-pagination">
+              <span className="mono">
+                Page {historyMeta.page} of {Math.max(1, Math.ceil(historyMeta.total / historyMeta.page_size))}
+              </span>
+              <div className="panel-actions">
+                <button
+                  className="ghost-button small"
+                  disabled={historyMeta.page <= 1}
+                  onClick={() => setHistoryPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  Previous
+                </button>
+                <button
+                  className="ghost-button small"
+                  disabled={historyMeta.page >= Math.ceil(historyMeta.total / historyMeta.page_size)}
+                  onClick={() => setHistoryPage((current) => current + 1)}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </article>
         </section>
       </main>
@@ -768,17 +996,15 @@ export default function App() {
   );
 }
 
-function severityToChartValue(severity) {
-  if (severity === "critical") return 95;
-  if (severity === "high") return 78;
-  if (severity === "medium") return 62;
-  return 40;
-}
-
 function topKey(recordMap) {
   if (!recordMap || typeof recordMap !== "object") return "";
 
   return Object.entries(recordMap).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+
+function countToChartValue(count) {
+  const normalized = Math.min(count, 12);
+  return 18 + normalized * 6;
 }
 
 function parseError(error) {

@@ -29,3 +29,10 @@ class PredictionHistoryItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PredictionHistoryResponse(BaseModel):
+    items: list[PredictionHistoryItem]
+    total: int
+    page: int
+    page_size: int
