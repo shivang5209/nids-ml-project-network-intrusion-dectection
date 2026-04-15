@@ -13,12 +13,64 @@ OUTPUT_COLUMNS = [
     "attack_type",
 ]
 
+NSL_KDD_COLUMNS = [
+    "duration",
+    "protocol_type",
+    "service",
+    "flag",
+    "src_bytes",
+    "dst_bytes",
+    "land",
+    "wrong_fragment",
+    "urgent",
+    "hot",
+    "num_failed_logins",
+    "logged_in",
+    "num_compromised",
+    "root_shell",
+    "su_attempted",
+    "num_root",
+    "num_file_creations",
+    "num_shells",
+    "num_access_files",
+    "num_outbound_cmds",
+    "is_host_login",
+    "is_guest_login",
+    "count",
+    "srv_count",
+    "serror_rate",
+    "srv_serror_rate",
+    "rerror_rate",
+    "srv_rerror_rate",
+    "same_srv_rate",
+    "diff_srv_rate",
+    "srv_diff_host_rate",
+    "dst_host_count",
+    "dst_host_srv_count",
+    "dst_host_same_srv_rate",
+    "dst_host_diff_srv_rate",
+    "dst_host_same_src_port_rate",
+    "dst_host_srv_diff_host_rate",
+    "dst_host_serror_rate",
+    "dst_host_srv_serror_rate",
+    "dst_host_rerror_rate",
+    "dst_host_srv_rerror_rate",
+    "label",
+    "difficulty",
+]
+
 
 def build_parser() -> ArgumentParser:
     parser = ArgumentParser(
         description="Normalize a raw network CSV into backend/data/nids_dataset.csv format."
     )
     parser.add_argument("input_csv", help="Path to the raw source CSV")
+    parser.add_argument(
+        "--format",
+        choices=["auto", "nsl-kdd"],
+        default="auto",
+        help="Optional dataset format hint (default: auto)",
+    )
     parser.add_argument(
         "--output",
         default="data/nids_dataset.csv",
@@ -59,17 +111,94 @@ def normalize_attack_type(value: object) -> str:
     return text if text else "Normal"
 
 
-def main():
-    parser = build_parser()
-    args = parser.parse_args()
+def normalize_nsl_attack_type(value: object) -> str:
+    text = str(value).strip().lower()
+    if text == "normal":
+        return "Normal"
+    if any(token in text for token in ["neptune", "smurf", "back", "teardrop", "pod", "land"]):
+        return "DDoS"
+    if any(token in text for token in ["satan", "ipsweep", "nmap", "portsweep", "mscan", "saint"]):
+        return "Probe"
+    if any(token in text for token in ["guess_passwd", "ftp_write", "imap", "multihop", "phf", "spy", "warez", "warezclient"]):
+        return "Credential Attack"
+    if any(token in text for token in ["buffer_overflow", "rootkit", "perl", "loadmodule", "sqlattack", "xterm", "ps"]):
+        return "Privilege Escalation"
+    return text.replace("_", " ").title()
 
-    input_path = Path(args.input_csv)
-    output_path = Path(args.output)
 
-    if not input_path.exists():
-        raise FileNotFoundError(f"Input CSV not found: {input_path}")
+def normalize_nsl_kdd(frame: pd.DataFrame) -> pd.DataFrame:
+    columns = [str(column).strip().lower() for column in frame.columns]
+    frame = frame.copy()
+    frame.columns = columns
 
-    frame = pd.read_csv(input_path)
+    if "protocol_type" not in frame.columns or "label" not in frame.columns:
+        raise ValueError(
+            "NSL-KDD input must include 'protocol_type' and 'label' columns."
+        )
+
+    if "src_bytes" not in frame.columns or "dst_bytes" not in frame.columns:
+        raise ValueError(
+            "NSL-KDD input must include 'src_bytes' and 'dst_bytes' columns."
+        )
+
+    packet_like_columns = [
+        column
+        for column in [
+            "count",
+            "srv_count",
+            "dst_host_count",
+            "dst_host_srv_count",
+        ]
+        if column in frame.columns
+    ]
+
+    output = pd.DataFrame()
+    if packet_like_columns:
+        output["packet_count"] = (
+            frame[packet_like_columns]
+            .apply(pd.to_numeric, errors="coerce")
+            .fillna(0)
+            .max(axis=1)
+        )
+    else:
+        output["packet_count"] = 1
+
+    output["byte_count"] = (
+        pd.to_numeric(frame["src_bytes"], errors="coerce").fillna(0)
+        + pd.to_numeric(frame["dst_bytes"], errors="coerce").fillna(0)
+    )
+
+    if "duration" in frame.columns:
+        output["flow_duration"] = pd.to_numeric(frame["duration"], errors="coerce").fillna(0)
+    else:
+        output["flow_duration"] = 0
+
+    output["protocol"] = frame["protocol_type"].map(normalize_protocol)
+    output["label"] = frame["label"].map(normalize_label)
+    output["attack_type"] = frame["label"].map(normalize_nsl_attack_type)
+
+    return output[OUTPUT_COLUMNS].dropna()
+
+
+def load_nsl_kdd_frame(input_path: Path) -> pd.DataFrame:
+    frame = pd.read_csv(input_path, header=None)
+    column_count = frame.shape[1]
+
+    if column_count == len(NSL_KDD_COLUMNS):
+        frame.columns = NSL_KDD_COLUMNS
+        return frame
+
+    if column_count == len(NSL_KDD_COLUMNS) - 1:
+        frame.columns = NSL_KDD_COLUMNS[:-1]
+        return frame
+
+    raise ValueError(
+        f"Unexpected NSL-KDD column count: {column_count}. Expected 42 or 43 columns."
+    )
+
+
+def normalize_auto(frame: pd.DataFrame) -> pd.DataFrame:
+    frame = frame.copy()
 
     packet_count_col = find_column(
         frame,
@@ -150,7 +279,25 @@ def main():
             lambda label: "Normal" if label == "normal" else "Unknown Attack"
         )
 
-    output = output[OUTPUT_COLUMNS].dropna()
+    return output[OUTPUT_COLUMNS].dropna()
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    input_path = Path(args.input_csv)
+    output_path = Path(args.output)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input CSV not found: {input_path}")
+
+    if args.format == "nsl-kdd":
+        frame = load_nsl_kdd_frame(input_path)
+        output = normalize_nsl_kdd(frame)
+    else:
+        frame = pd.read_csv(input_path)
+        output = normalize_auto(frame)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output.to_csv(output_path, index=False)

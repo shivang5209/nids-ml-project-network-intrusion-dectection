@@ -22,6 +22,34 @@ cd D:\ml-project\backend
 python scripts\prepare_dataset_csv.py "path\to\raw_dataset.csv"
 ```
 
+## Recommended Real Dataset Path
+
+The easiest real public dataset format to adapt into this project is **NSL-KDD**.
+
+If you convert the NSL-KDD data file into CSV first, run:
+
+```powershell
+cd D:\ml-project\backend
+python scripts\prepare_dataset_csv.py "path\to\nsl_kdd.csv" --format nsl-kdd
+```
+
+This maps:
+
+- `protocol_type` -> `protocol`
+- `src_bytes + dst_bytes` -> `byte_count`
+- `duration` -> `flow_duration`
+- one of `count`, `srv_count`, `dst_host_count`, `dst_host_srv_count` -> `packet_count`
+- `label` -> `label`
+- `label` -> grouped `attack_type`
+
+Grouped attack types include:
+
+- `Normal`
+- `DDoS`
+- `Probe`
+- `Credential Attack`
+- `Privilege Escalation`
+
 That writes:
 
 - `backend/data/nids_dataset.csv`
@@ -41,6 +69,10 @@ The normalizer can map these common source columns:
 - `Tot Fwd Pkts` + `Tot Bwd Pkts` -> `packet_count`
 - `TotLen Fwd Pkts` + `TotLen Bwd Pkts` -> `byte_count`
 - `Label` -> `label`
+
+It also supports:
+
+- `NSL-KDD` style CSV input through `--format nsl-kdd`
 
 If your raw dataset already has:
 
@@ -71,4 +103,3 @@ For `attack_type`, keep values such as:
 - `Probe`
 - `Port Scan`
 - `Botnet`
-

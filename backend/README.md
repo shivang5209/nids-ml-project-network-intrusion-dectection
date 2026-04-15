@@ -82,6 +82,21 @@ This will overwrite the active model artifact at:
 
 - `backend/artifacts/nids_model.joblib`
 
+## Prepare a Real Public Dataset
+
+If you want a stronger academic dataset than the small demo CSV, use an **NSL-KDD** style CSV and normalize it first:
+
+```bash
+python scripts/prepare_dataset_csv.py "path/to/nsl_kdd.csv" --format nsl-kdd
+python scripts/train_from_csv.py
+```
+
+This converts the raw file into:
+
+- `backend/data/nids_dataset.csv`
+
+and then retrains the active model artifact with real rows.
+
 ## Default Admin
 
 - Email: `admin@nidsdemo.com`
