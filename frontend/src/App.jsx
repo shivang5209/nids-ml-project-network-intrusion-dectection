@@ -5,6 +5,7 @@ import {
   downloadPredictionsReport,
   fetchAlerts,
   fetchAnalyticsReport,
+  fetchLiveCaptureStatus,
   fetchDailyReport,
   fetchDashboardSummary,
   fetchLiveTraffic,
@@ -13,6 +14,8 @@ import {
   fetchProfile,
   login,
   runPrediction,
+  startLiveCapture,
+  stopLiveCapture,
   updateAlertStatus
 } from "./api";
 import {
@@ -59,6 +62,12 @@ export default function App() {
   const [report, setReport] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [modelEvaluation, setModelEvaluation] = useState(null);
+  const [captureStatus, setCaptureStatus] = useState(null);
+  const [captureActionLoading, setCaptureActionLoading] = useState(false);
+  const [captureForm, setCaptureForm] = useState({
+    interface: "",
+    interval_seconds: 5
+  });
   const [authForm, setAuthForm] = useState({
     email: "admin@nidsdemo.com",
     password: "admin123"
@@ -292,6 +301,7 @@ export default function App() {
         fetchAnalyticsReport(currentToken, Number(selectedWindow)),
         fetchModelEvaluation(currentToken)
       ]);
+      const captureData = await fetchLiveCaptureStatus(currentToken);
 
       setProfile(profileData);
       setSummary(summaryData);
@@ -320,6 +330,7 @@ export default function App() {
       });
       setAnalytics(analyticsData);
       setModelEvaluation(evaluationData);
+      setCaptureStatus(captureData);
       setLastUpdatedAt(new Date());
     } catch (err) {
       setError(parseError(err));
@@ -443,6 +454,41 @@ export default function App() {
       await downloadAnalyticsReport(token, Number(analyticsWindow));
     } catch (err) {
       setError(parseError(err));
+    }
+  }
+
+  async function handleCaptureStart() {
+    if (!token) return;
+    setCaptureActionLoading(true);
+    setError("");
+
+    try {
+      const result = await startLiveCapture(token, {
+        interface: captureForm.interface || null,
+        interval_seconds: Number(captureForm.interval_seconds)
+      });
+      setCaptureStatus(result);
+      await loadBackendData(token);
+    } catch (err) {
+      setError(parseError(err));
+    } finally {
+      setCaptureActionLoading(false);
+    }
+  }
+
+  async function handleCaptureStop() {
+    if (!token) return;
+    setCaptureActionLoading(true);
+    setError("");
+
+    try {
+      const result = await stopLiveCapture(token);
+      setCaptureStatus(result);
+      await loadBackendData(token);
+    } catch (err) {
+      setError(parseError(err));
+    } finally {
+      setCaptureActionLoading(false);
     }
   }
 
@@ -741,6 +787,60 @@ export default function App() {
                   ? `Updated ${lastUpdatedAt.toLocaleTimeString()}`
                   : "Waiting for backend"}
               </span>
+            </div>
+            <div className="capture-controls">
+              <label>
+                Interface
+                <input
+                  onChange={(event) =>
+                    setCaptureForm((prev) => ({ ...prev, interface: event.target.value }))
+                  }
+                  placeholder="Default Interface"
+                  type="text"
+                  value={captureForm.interface}
+                />
+              </label>
+              <label>
+                Window (sec)
+                <input
+                  min="1"
+                  max="60"
+                  onChange={(event) =>
+                    setCaptureForm((prev) => ({ ...prev, interval_seconds: Number(event.target.value) || 1 }))
+                  }
+                  type="number"
+                  value={captureForm.interval_seconds}
+                />
+              </label>
+              <div className="capture-actions">
+                <button
+                  className="ghost-button small"
+                  disabled={!token || captureActionLoading || captureStatus?.running}
+                  onClick={handleCaptureStart}
+                  type="button"
+                >
+                  {captureActionLoading ? "Starting..." : "Start Capture"}
+                </button>
+                <button
+                  className="ghost-button small"
+                  disabled={!token || captureActionLoading || !captureStatus?.running}
+                  onClick={handleCaptureStop}
+                  type="button"
+                >
+                  {captureActionLoading ? "Stopping..." : "Stop Capture"}
+                </button>
+              </div>
+            </div>
+            <div className="capture-status">
+              <p className="mono">
+                Status: {captureStatus?.running ? "Running" : "Stopped"} | Batches: {captureStatus?.batches_processed ?? 0}
+              </p>
+              <p className="mono">
+                Last Batch: {captureStatus?.last_batch_at ? new Date(captureStatus.last_batch_at).toLocaleTimeString() : "N/A"}
+              </p>
+              {captureStatus?.last_error ? (
+                <p className="capture-error">Capture Error: {captureStatus.last_error}</p>
+              ) : null}
             </div>
             <div className="feed-list">
               {displayFeed.map((item) => (

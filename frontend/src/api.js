@@ -68,6 +68,30 @@ export async function fetchLiveTraffic(token) {
   });
 }
 
+export async function fetchLiveCaptureStatus(token) {
+  return request("/traffic/capture/status", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function startLiveCapture(token, payload) {
+  return request("/traffic/capture/start", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function stopLiveCapture(token) {
+  return request("/traffic/capture/stop", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export async function fetchAlerts(token, filters = {}) {
   return request(withQuery("/alerts", filters), {
     headers: { Authorization: `Bearer ${token}` }

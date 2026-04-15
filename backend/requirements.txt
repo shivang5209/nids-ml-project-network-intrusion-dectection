@@ -7,3 +7,4 @@ PyJWT==2.8.0
 joblib==1.4.2
 numpy==2.1.1
 scikit-learn==1.5.2
+scapy==2.5.0

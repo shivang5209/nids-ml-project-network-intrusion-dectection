@@ -10,6 +10,7 @@ FastAPI backend for the Network Intrusion Detection System project.
 - Alerts list and status update
 - Dashboard summary and daily report endpoints
 - Auto-bootstrap admin user and DB tables on startup
+- Live capture control endpoints (`/traffic/capture/start|stop|status`)
 
 ## Setup
 
@@ -30,6 +31,36 @@ Optional:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+## Live Capture (First Real-Time Pipeline)
+
+Start packet capture and automatic prediction ingestion:
+
+```bash
+# authenticated request in Swagger or API client
+POST /traffic/capture/start
+{
+  "interface": null,
+  "interval_seconds": 5
+}
+```
+
+Check status:
+
+```bash
+GET /traffic/capture/status
+```
+
+Stop:
+
+```bash
+POST /traffic/capture/stop
+```
+
+Notes:
+
+- Requires admin privileges for packet sniffing on most systems.
+- Requires `scapy` and local capture driver support (Npcap/WinPcap on Windows).
 
 ## Train Demo Model
 

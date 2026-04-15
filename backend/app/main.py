@@ -5,12 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import alerts, auth, dashboard, health, predict, reports, traffic
 from app.core.bootstrap import bootstrap_database
+from app.services.live_capture_service import live_capture_manager
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     bootstrap_database()
     yield
+    live_capture_manager.stop()
 
 
 app = FastAPI(

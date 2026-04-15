@@ -16,3 +16,17 @@ class TrafficOut(TrafficIn):
     class Config:
         from_attributes = True
 
+
+class CaptureStartRequest(BaseModel):
+    interface: str | None = None
+    interval_seconds: int = Field(default=5, ge=1, le=60)
+
+
+class CaptureStatusResponse(BaseModel):
+    running: bool
+    interface: str | None
+    interval_seconds: int
+    batches_processed: int
+    last_batch_at: str | None
+    last_error: str | None
+    last_feature_snapshot: dict | None

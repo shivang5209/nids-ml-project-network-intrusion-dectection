@@ -492,6 +492,53 @@ body::before {
   margin-top: 20px;
 }
 
+.capture-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.capture-controls label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.capture-controls input {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: rgba(7, 19, 26, 0.9);
+  color: var(--text);
+  font: inherit;
+}
+
+.capture-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.capture-status {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.capture-status .mono {
+  margin: 0;
+}
+
+.capture-error {
+  margin: 8px 0 0;
+  color: #ffd8d2;
+  font-size: 0.85rem;
+}
+
 .feed-item {
   display: grid;
   gap: 8px;
@@ -688,6 +735,15 @@ th {
   .panel-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .capture-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .capture-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .chart-bars {
