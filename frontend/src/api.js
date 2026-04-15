@@ -80,6 +80,12 @@ export async function fetchDailyReport(token) {
   });
 }
 
+export async function fetchModelEvaluation(token) {
+  return request("/reports/model-evaluation", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export async function fetchAnalyticsReport(token, hours = 12) {
   return request(`/reports/analytics?hours=${hours}`, {
     headers: { Authorization: `Bearer ${token}` }

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models import Alert, Prediction, User
+from app.services.model_service import load_model_artifact
 
 router = APIRouter()
 
@@ -224,3 +225,34 @@ def export_analytics_report(
         ["window_hours", "hour", "label", "prediction_count", "malicious_count"],
         csv_rows,
     )
+
+
+@router.get("/model-evaluation")
+def model_evaluation_report(
+    _: User = Depends(get_current_user),
+) -> dict:
+    artifact = load_model_artifact()
+    if not artifact:
+        return {
+            "available": False,
+            "model_version": "heuristic-v1",
+            "evaluation": None,
+        }
+
+    evaluation = artifact.get("evaluation") or {
+        "accuracy": artifact.get("accuracy"),
+        "precision": None,
+        "recall": None,
+        "f1_score": None,
+        "true_negative": None,
+        "false_positive": None,
+        "false_negative": None,
+        "true_positive": None,
+        "dataset_rows": None,
+        "evaluation_samples": None,
+    }
+    return {
+        "available": True,
+        "model_version": artifact.get("model_version", "trained-v1"),
+        "evaluation": evaluation,
+    }

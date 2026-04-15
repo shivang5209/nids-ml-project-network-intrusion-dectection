@@ -8,6 +8,7 @@ import {
   fetchDailyReport,
   fetchDashboardSummary,
   fetchLiveTraffic,
+  fetchModelEvaluation,
   fetchPredictionHistory,
   fetchProfile,
   login,
@@ -57,6 +58,7 @@ export default function App() {
   const [historyMeta, setHistoryMeta] = useState({ total: 0, page: 1, page_size: 10 });
   const [report, setReport] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const [modelEvaluation, setModelEvaluation] = useState(null);
   const [authForm, setAuthForm] = useState({
     email: "admin@nidsdemo.com",
     password: "admin123"
@@ -78,22 +80,42 @@ export default function App() {
   });
 
   const modelSummary = useMemo(() => {
-    if (!report) {
+    if (!modelEvaluation?.available || !modelEvaluation?.evaluation) {
       return [
-        { label: "Accuracy", value: "97.4%" },
-        { label: "Precision", value: "95.8%" },
-        { label: "Recall", value: "96.9%" },
-        { label: "F1-Score", value: "96.3%" }
+        { label: "Model", value: "Heuristic" },
+        { label: "Accuracy", value: "N/A" },
+        { label: "Precision", value: "N/A" },
+        { label: "Recall", value: "N/A" }
+      ];
+    }
+
+    const evaluation = modelEvaluation.evaluation;
+    return [
+      { label: "Model", value: modelEvaluation.model_version || "N/A" },
+      { label: "Accuracy", value: formatMetricPercent(evaluation.accuracy) },
+      { label: "Precision", value: formatMetricPercent(evaluation.precision) },
+      { label: "Recall", value: formatMetricPercent(evaluation.recall) }
+    ];
+  }, [modelEvaluation]);
+
+  const evaluationDetails = useMemo(() => {
+    const evaluation = modelEvaluation?.evaluation;
+    if (!modelEvaluation?.available || !evaluation) {
+      return [
+        { label: "F1 Score", value: "N/A" },
+        { label: "Samples", value: "N/A" },
+        { label: "TP / TN", value: "N/A" },
+        { label: "FP / FN", value: "N/A" }
       ];
     }
 
     return [
-      { label: "Predictions", value: String(report.prediction_count || 0) },
-      { label: "Alerts", value: String(report.alert_count || 0) },
-      { label: "Top Label", value: topKey(report.labels) || "N/A" },
-      { label: "Top Attack", value: topKey(report.attack_types) || "N/A" }
+      { label: "F1 Score", value: formatMetricPercent(evaluation.f1_score) },
+      { label: "Samples", value: `${evaluation.evaluation_samples ?? 0} eval / ${evaluation.dataset_rows ?? 0} total` },
+      { label: "TP / TN", value: `${evaluation.true_positive ?? 0} / ${evaluation.true_negative ?? 0}` },
+      { label: "FP / FN", value: `${evaluation.false_positive ?? 0} / ${evaluation.false_negative ?? 0}` }
     ];
-  }, [report]);
+  }, [modelEvaluation]);
 
   const heroStats = useMemo(() => {
     if (!summary) {
@@ -260,14 +282,15 @@ export default function App() {
     setError("");
 
     try {
-      const [profileData, summaryData, liveData, alertsData, reportData, historyData, analyticsData] = await Promise.all([
+      const [profileData, summaryData, liveData, alertsData, reportData, historyData, analyticsData, evaluationData] = await Promise.all([
         fetchProfile(currentToken),
         fetchDashboardSummary(currentToken),
         fetchLiveTraffic(currentToken),
         fetchAlerts(currentToken, alertFilters),
         fetchDailyReport(currentToken),
         fetchPredictionHistory(currentToken, historyFilters),
-        fetchAnalyticsReport(currentToken, Number(selectedWindow))
+        fetchAnalyticsReport(currentToken, Number(selectedWindow)),
+        fetchModelEvaluation(currentToken)
       ]);
 
       setProfile(profileData);
@@ -296,6 +319,7 @@ export default function App() {
         page_size: historyData.page_size
       });
       setAnalytics(analyticsData);
+      setModelEvaluation(evaluationData);
       setLastUpdatedAt(new Date());
     } catch (err) {
       setError(parseError(err));
@@ -927,6 +951,14 @@ export default function App() {
                 </li>
               ))}
             </ul>
+            <div className="evaluation-grid">
+              {evaluationDetails.map((item) => (
+                <article className="evaluation-card" key={item.label}>
+                  <span className="eyebrow">{item.label}</span>
+                  <strong>{item.value}</strong>
+                </article>
+              ))}
+            </div>
           </article>
 
           <article className="panel wide">
@@ -1005,6 +1037,11 @@ function topKey(recordMap) {
 function countToChartValue(count) {
   const normalized = Math.min(count, 12);
   return 18 + normalized * 6;
+}
+
+function formatMetricPercent(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "N/A";
+  return `${(Number(value) * 100).toFixed(1)}%`;
 }
 
 function parseError(error) {

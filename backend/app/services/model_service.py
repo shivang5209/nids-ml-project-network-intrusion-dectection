@@ -38,6 +38,13 @@ def load_trained_model() -> tuple[object, dict] | tuple[None, None]:
     return artifact.get("model"), artifact
 
 
+def load_model_artifact() -> dict | None:
+    artifact_path = Path(settings.model_artifact_path)
+    if not artifact_path.exists():
+        return None
+    return joblib.load(artifact_path)
+
+
 def run_baseline_inference(payload: PredictRequest) -> ModelOutput:
     score = 0
 

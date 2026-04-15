@@ -3,6 +3,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
@@ -88,7 +89,27 @@ def main():
     )
     attack_model.fit(features, encoded_attacks)
 
+    predicted_labels = model.predict(x_test)
     accuracy = float(model.score(x_test, y_test))
+    precision, recall, f1_score, _ = precision_recall_fscore_support(
+        y_test,
+        predicted_labels,
+        average="binary",
+        zero_division=0,
+    )
+    tn, fp, fn, tp = confusion_matrix(y_test, predicted_labels).ravel()
+    evaluation = {
+        "accuracy": accuracy,
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1_score": float(f1_score),
+        "true_negative": int(tn),
+        "false_positive": int(fp),
+        "false_negative": int(fn),
+        "true_positive": int(tp),
+        "dataset_rows": int(len(frame)),
+        "evaluation_samples": int(len(y_test)),
+    }
 
     ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(
@@ -99,6 +120,7 @@ def main():
             "attack_encoder": attack_encoder,
             "model_version": "csv-rf-v1",
             "accuracy": accuracy,
+            "evaluation": evaluation,
             "feature_columns": FEATURE_COLUMNS,
         },
         ARTIFACT_PATH,
