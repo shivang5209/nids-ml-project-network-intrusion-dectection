@@ -2,9 +2,13 @@
 
 ## Purpose
 
-This document consolidates the complete implementation flow of the **Network Intrusion Detection System (NIDS)** project. It combines frontend, backend, database, machine learning, security documentation, testing, and deployment into a single execution roadmap.
+This document consolidates the complete implementation flow of the **Network Intrusion Detection System (NIDS)** project and now reflects the project state that has already been implemented in code. It combines frontend, backend, database, machine learning, security documentation, testing, and deployment into a single execution roadmap.
 
-The goal is to provide a practical sequence for building the full project from start to finish, while ensuring that technical development and required cybersecurity documentation progress together.
+The goal is to provide:
+
+- the build order of the project
+- the actual implemented system flow
+- the remaining work for final academic polishing and deployment
 
 ## Project Goal
 
@@ -16,19 +20,19 @@ The project aims to build a web-based **Machine Learning powered Network Intrusi
 - Store records, predictions, and system logs in a database
 - Support academic submission through proper cybersecurity and operations documentation
 
-## Overall System Flow
+## Current Implemented System Flow
 
-The final system will operate in this order:
+The current working system operates in this order:
 
 1. User accesses the frontend dashboard.
 2. Frontend sends requests to backend APIs.
 3. Backend validates the request and processes input.
 4. Backend fetches or stores data in the database.
-5. Backend sends traffic features to the ML model.
-6. ML model returns classification output.
-7. Backend stores prediction results and generates alerts if needed.
-8. Frontend displays predictions, alerts, logs, and reports.
-9. Security controls, testing checks, and operational documentation support the full system lifecycle.
+5. Backend sends traffic features to the trained ML model or heuristic fallback.
+6. Model returns label, attack type, confidence, and model version.
+7. Backend stores prediction results and generates alerts for malicious traffic.
+8. Frontend displays dashboard summary, alerts, prediction history, analytics timeline, and model evaluation.
+9. Users can filter, paginate, export, and resolve alerts from the dashboard.
 
 ## Consolidated Implementation Flow
 
@@ -140,12 +144,15 @@ Develop the service layer that coordinates users, prediction requests, alert cre
 - Store predictions and generate alerts.
 - Add request logging and exception handling.
 
-### Output
+### Implemented Output
 
-- Working backend service
-- Auth system
+- Working `FastAPI` backend service
+- JWT auth system
 - Prediction endpoints
 - Alert and report endpoints
+- Analytics endpoint
+- CSV export endpoints
+- Pagination support for alerts and history
 
 ### Dependency
 
@@ -169,11 +176,16 @@ Build the user-facing interface that consumes backend APIs and displays system i
 - Add loading states and error handling.
 - Test responsive layout.
 
-### Output
+### Implemented Output
 
-- Web UI for monitoring
-- API-connected dashboard
-- Alerts and reports interface
+- React dashboard
+- API-connected login flow
+- inference lab for `/predict`
+- alert queue with resolve action
+- prediction history with pagination
+- analytics timeline with hover tooltip
+- filter controls and CSV exports
+- model evaluation panel
 
 ### Dependency
 
@@ -196,10 +208,12 @@ Connect frontend, backend, database, and ML inference into a fully working flow.
 - Verify dashboard and reports show fresh data.
 - Validate audit logs and health status.
 
-### Output
+### Implemented Output
 
 - Fully connected project
 - Verified prediction-to-alert pipeline
+- Verified dashboard analytics and export flow
+- Verified persisted model evaluation display
 
 ## Phase 7: Cybersecurity Documentation and Security Controls
 
@@ -276,11 +290,12 @@ Prepare the project for execution in a local lab environment or presentation env
 - Prepare backup and recovery notes.
 - Document retraining and maintenance procedure.
 
-### Output
+### Current Output
 
-- Runnable full system
-- Deployment checklist
-- Maintenance guide
+- Runnable local full system
+- training script and saved model artifact
+- frontend and backend startup flow
+- deployment checklist still suitable for extension to public hosting
 
 ### Required Document
 
@@ -343,9 +358,9 @@ This order is important because:
 - Completed system behavior
 - Final module integration
 
-## Full Project Deliverables
+## Current Deliverables
 
-At the end of execution, the project should include:
+The project currently includes:
 
 - Research document
 - Main implementation plan
@@ -358,6 +373,9 @@ At the end of execution, the project should include:
 - Test plan
 - Deployment and maintenance guide
 - Working full-stack NIDS prototype
+- root project README
+- persisted model evaluation metrics
+- server-side filtering, export, and pagination
 
 ## Recommended Team Execution Model
 
@@ -371,7 +389,7 @@ If the project is done by multiple members, the work can be split as follows:
 
 ## Practical End-to-End Example
 
-The complete project execution can be understood through this example:
+The implemented project execution can be understood through this example:
 
 1. A user logs into the dashboard.
 2. The frontend sends credentials to the backend.
@@ -382,10 +400,19 @@ The complete project execution can be understood through this example:
 7. The backend stores the result in the predictions table.
 8. If malicious, the backend creates an alert.
 9. The frontend dashboard updates and shows the alert.
-10. Logs are stored for review, and reports can be generated later.
+10. Reports, CSV exports, and model evaluation can be generated from the dashboard.
 
 This is the core operational flow of the NIDS project.
 
+## Remaining Work
+
+The main remaining tasks are:
+
+- retrain with a larger real dataset for stronger evidence
+- capture screenshots for the final report
+- harden environment configuration for production use
+- optionally deploy frontend and backend for a live demo
+
 ## Conclusion
 
-This document provides the full implementation and execution flow for the NIDS project in one place. It consolidates development planning, integration order, documentation requirements, and operational execution so the full project can be built and presented systematically.
+This document now reflects both the planned and the implemented execution flow for the NIDS project. The system has progressed from a research concept into a working full-stack prototype with prediction, alerting, analytics, export, and evaluation capabilities.

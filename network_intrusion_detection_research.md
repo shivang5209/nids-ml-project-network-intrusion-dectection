@@ -2,9 +2,16 @@
 
 ## Project Overview
 
-This research focuses on designing and implementing a **Network Intrusion Detection System (NIDS)** using machine learning techniques. The aim is to improve detection of malicious network activity by classifying traffic as **normal** or **attack** in near real time.
+This project designs and implements a **Network Intrusion Detection System (NIDS)** using machine learning and a full-stack web architecture. The implemented prototype classifies traffic as **normal** or **malicious**, stores predictions and alerts, and provides a dashboard for monitoring, analytics, filtering, pagination, CSV export, and model evaluation.
 
-Traditional security tools such as firewalls and signature-based IDS are effective for known threats but often fail against unknown or evolving attacks. A data-driven ML approach is proposed to improve adaptability, detection accuracy, and operational reliability.
+The current implementation uses:
+
+- `React + Vite` for the frontend dashboard
+- `FastAPI` for backend APIs
+- `SQLite + SQLAlchemy` for persistence
+- `Python + scikit-learn` for model training and inference
+
+Traditional security tools such as firewalls and signature-based IDS are effective for known threats but often fail against unknown or evolving attacks. A data-driven ML approach improves adaptability, detection accuracy, and operational visibility.
 
 ## Problem Statement
 
@@ -71,23 +78,26 @@ Weaknesses include:
 - Limited adaptability to changing traffic behavior
 - Inconsistent real-time detection performance
 
-### Proposed System
+### Proposed and Implemented System
 
-The proposed NIDS pipeline includes:
+The current NIDS pipeline includes:
 
-1. Network traffic collection
-2. Data preprocessing (cleaning, encoding, scaling)
-3. Feature extraction/selection
-4. ML model training and validation
-5. Real-time inference on live packet/flow data
-6. Dashboard-based visualization and alerts
+1. Traffic feature input through the backend API
+2. Data preprocessing and protocol encoding
+3. ML model training and artifact generation
+4. Real-time prediction through `/predict`
+5. Automatic alert generation for malicious results
+6. Dashboard-based visualization of alerts, prediction history, and analytics
+7. CSV export and paginated historical review
+8. Model evaluation reporting from saved artifact metrics
 
-Expected benefits:
+Implemented benefits:
 
-- Better detection accuracy
-- Lower false alarm rates
-- Faster operational response
-- Practical usability through a web interface
+- Better detection visibility through a web dashboard
+- Automatic alert generation for suspicious traffic
+- Historical tracking of predictions and alerts
+- Exportable records for academic review and reporting
+- Measurable ML evaluation metrics shown in the UI
 
 ## Methodology
 
@@ -137,9 +147,22 @@ Operational metrics (recommended):
 
 ### 6) Deployment
 
-- Build a Flask/Django web interface for monitoring.
-- Integrate live packet capture pipeline.
-- Display alerts, class labels, and trend graphs.
+The implemented project is currently designed for local deployment and academic demonstration:
+
+- backend started with `uvicorn`
+- frontend started with `Vite`
+- SQLite used for local persistence
+- trained model artifact loaded from `backend/artifacts/nids_model.joblib`
+
+The dashboard currently supports:
+
+- authentication
+- prediction submission
+- alert review and resolution
+- analytics timeline
+- server-side filters
+- CSV export
+- model evaluation summary
 
 ## System Requirements
 
@@ -153,18 +176,20 @@ Operational metrics (recommended):
 ### Software
 
 - OS: Windows or Linux
-- Language: Python
-- Libraries: `scikit-learn`, `pandas`, `numpy`, `matplotlib`
-- Web framework: Flask or Django
-- Tools: Wireshark (optional), Jupyter Notebook / VS Code
+- Frontend: `React`, `Vite`
+- Backend: `FastAPI`
+- Database: `SQLite`, `SQLAlchemy`
+- ML Libraries: `scikit-learn`, `pandas`, `numpy`, `joblib`
+- Tools: Jupyter Notebook / VS Code, optional Wireshark
 - Browser: Chrome or Edge
 
-## Expected Outcomes
+## Implemented Outcomes
 
-- A functional ML-based NIDS capable of real-time traffic classification.
-- Improved accuracy over signature-only detection baselines.
-- Reduced false alarms and better detection consistency.
-- A web dashboard for user-friendly monitoring and response support.
+- A functional ML-based NIDS prototype capable of prediction through backend APIs
+- Stored traffic, predictions, alerts, and resolution workflow
+- A web dashboard for monitoring, filtering, exports, and analytics
+- Persisted model evaluation metrics including accuracy, precision, recall, F1, and confusion-style counts
+- A complete academic prototype that can be demonstrated end to end
 
 ## Risks and Limitations
 
@@ -183,7 +208,7 @@ Operational metrics (recommended):
 
 ## Conclusion
 
-This project presents a practical and intelligent shift from signature-only detection toward ML-driven network defense. By combining preprocessing, feature engineering, model training, and real-time deployment with a monitoring interface, the proposed NIDS provides a stronger foundation for modern cybersecurity operations.
+This project presents a practical shift from signature-only detection toward ML-driven network monitoring. The implemented system already combines training, prediction, persistence, analytics, alert handling, and UI-based monitoring in one working prototype. While the current dataset remains small and should be expanded for stronger academic credibility, the architecture and implementation now reflect a complete full-stack NIDS project rather than only a conceptual design.
 
 ## References (From Source Document)
 
