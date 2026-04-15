@@ -1,0 +1,46 @@
+packet_count,byte_count,flow_duration,protocol,label,attack_type
+120,45000,1.25,TCP,normal,Normal
+85,21000,0.92,UDP,normal,Normal
+2100,1250000,0.04,ICMP,malicious,DDoS
+760,340000,0.11,TCP,malicious,Probe
+430,160000,0.36,TCP,malicious,Port Scan
+118,45210,1.34,TCP,normal,Normal
+84,20120,0.88,UDP,normal,Normal
+141,58900,2.11,TCP,normal,Normal
+63,15010,0.57,UDP,normal,Normal
+205,74200,3.02,TCP,normal,Normal
+96,28750,1.08,TCP,normal,Normal
+77,18300,0.74,UDP,normal,Normal
+154,65540,2.47,TCP,normal,Normal
+52,12140,0.42,UDP,normal,Normal
+188,81020,3.55,TCP,normal,Normal
+110,40210,1.26,TCP,normal,Normal
+69,17450,0.63,UDP,normal,Normal
+132,53820,1.95,TCP,normal,Normal
+58,13220,0.39,UDP,normal,Normal
+176,69410,2.83,TCP,normal,Normal
+91,26110,0.96,TCP,normal,Normal
+73,16500,0.51,UDP,normal,Normal
+147,60350,2.26,TCP,normal,Normal
+44,10980,0.28,UDP,normal,Normal
+162,67040,2.62,TCP,normal,Normal
+720,335000,0.12,TCP,malicious,Probe
+680,298000,0.15,TCP,malicious,Probe
+840,412000,0.09,TCP,malicious,Probe
+590,244000,0.18,UDP,malicious,Probe
+910,438000,0.07,TCP,malicious,Probe
+760,355000,0.11,TCP,malicious,Port Scan
+640,280000,0.16,TCP,malicious,Port Scan
+870,401000,0.08,TCP,malicious,Port Scan
+530,212000,0.19,UDP,malicious,Port Scan
+980,470000,0.06,TCP,malicious,Port Scan
+1820,1125000,0.05,ICMP,malicious,DDoS
+2100,1289000,0.03,ICMP,malicious,DDoS
+1950,1184000,0.04,TCP,malicious,DDoS
+2240,1392000,0.02,ICMP,malicious,DDoS
+1760,1048000,0.06,UDP,malicious,DDoS
+1885,1203000,0.05,TCP,malicious,Botnet
+2055,1324000,0.03,ICMP,malicious,Botnet
+1710,1016000,0.07,UDP,malicious,Botnet
+1980,1267000,0.04,TCP,malicious,Botnet
+2160,1415000,0.02,ICMP,malicious,Botnet

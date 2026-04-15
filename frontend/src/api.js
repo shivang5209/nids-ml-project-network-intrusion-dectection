@@ -47,6 +47,12 @@ export async function fetchDailyReport(token) {
   });
 }
 
+export async function fetchPredictionHistory(token) {
+  return request("/predict/history", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export async function runPrediction(token, payload) {
   return request("/predict", {
     method: "POST",
@@ -55,5 +61,16 @@ export async function runPrediction(token, payload) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
+  });
+}
+
+export async function updateAlertStatus(token, alertId, status) {
+  return request(`/alerts/${alertId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ status })
   });
 }

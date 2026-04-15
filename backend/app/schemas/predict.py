@@ -17,3 +17,15 @@ class PredictResponse(BaseModel):
     confidence: float
     alert_created: bool
 
+
+class PredictionHistoryItem(BaseModel):
+    id: int
+    traffic_record_id: int | None
+    predicted_label: str
+    attack_type: str
+    confidence_score: float
+    model_version: str
+    predicted_at: str
+
+    class Config:
+        from_attributes = True

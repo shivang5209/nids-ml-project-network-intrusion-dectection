@@ -239,6 +239,30 @@ body::before {
   margin-bottom: 24px;
 }
 
+.filters-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.filters-row label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.filters-row select {
+  min-width: 180px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: rgba(7, 19, 26, 0.9);
+  color: var(--text);
+  font: inherit;
+}
+
 .search-wrap input {
   width: min(320px, 46vw);
   padding: 13px 16px;
@@ -525,6 +549,14 @@ th {
 
   .search-wrap input {
     width: 100%;
+  }
+
+  .filters-row {
+    flex-direction: column;
+  }
+
+  .filters-row select {
+    min-width: 100%;
   }
 
   .chart-bars {

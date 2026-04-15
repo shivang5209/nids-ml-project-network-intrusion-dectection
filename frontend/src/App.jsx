@@ -4,9 +4,11 @@ import {
   fetchDailyReport,
   fetchDashboardSummary,
   fetchLiveTraffic,
+  fetchPredictionHistory,
   fetchProfile,
   login,
-  runPrediction
+  runPrediction,
+  updateAlertStatus
 } from "./api";
 import {
   alertRows,
@@ -38,9 +40,13 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [activePanel, setActivePanel] = useState("overview");
   const [query, setQuery] = useState("");
+  const [alertSeverityFilter, setAlertSeverityFilter] = useState("all");
+  const [alertStatusFilter, setAlertStatusFilter] = useState("all");
+  const [historyLabelFilter, setHistoryLabelFilter] = useState("all");
   const [summary, setSummary] = useState(null);
   const [liveRecords, setLiveRecords] = useState([]);
   const [alerts, setAlerts] = useState(alertRows);
+  const [predictionHistory, setPredictionHistory] = useState([]);
   const [report, setReport] = useState(null);
   const [authForm, setAuthForm] = useState({
     email: "admin@nidsdemo.com",
@@ -49,8 +55,10 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [predictLoading, setPredictLoading] = useState(false);
+  const [alertUpdatingId, setAlertUpdatingId] = useState(null);
   const [predictResult, setPredictResult] = useState(null);
   const [error, setError] = useState("");
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [predictForm, setPredictForm] = useState({
     source_ip: "10.0.0.17",
     destination_ip: "192.168.1.25",
@@ -152,12 +160,25 @@ export default function App() {
 
   const filteredAlerts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return alerts;
+    return alerts.filter((row) => {
+      const matchesQuery = !normalized || Object.values(row).some((value) =>
+        String(value).toLowerCase().includes(normalized)
+      );
+      const matchesSeverity =
+        alertSeverityFilter === "all" || row.severity === alertSeverityFilter;
+      const matchesStatus =
+        alertStatusFilter === "all" || row.status.toLowerCase() === alertStatusFilter;
 
-    return alerts.filter((row) =>
-      Object.values(row).some((value) => String(value).toLowerCase().includes(normalized))
-    );
-  }, [alerts, query]);
+      return matchesQuery && matchesSeverity && matchesStatus;
+    });
+  }, [alerts, alertSeverityFilter, alertStatusFilter, query]);
+
+  const filteredHistory = useMemo(() => {
+    return predictionHistory.filter((row) => {
+      if (historyLabelFilter === "all") return true;
+      return row.predicted_label === historyLabelFilter;
+    });
+  }, [historyLabelFilter, predictionHistory]);
 
   const chartPoints = useMemo(() => {
     if (!alerts.length) return chartValues;
@@ -197,12 +218,13 @@ export default function App() {
     setError("");
 
     try {
-      const [profileData, summaryData, liveData, alertsData, reportData] = await Promise.all([
+      const [profileData, summaryData, liveData, alertsData, reportData, historyData] = await Promise.all([
         fetchProfile(currentToken),
         fetchDashboardSummary(currentToken),
         fetchLiveTraffic(currentToken),
         fetchAlerts(currentToken),
-        fetchDailyReport(currentToken)
+        fetchDailyReport(currentToken),
+        fetchPredictionHistory(currentToken)
       ]);
 
       setProfile(profileData);
@@ -210,6 +232,7 @@ export default function App() {
       setLiveRecords(liveData);
       setAlerts(
         alertsData.map((item) => ({
+          id: item.id,
           time: new Date(item.created_at).toLocaleTimeString(),
           source: item.source_ip,
           attack: item.attack_type,
@@ -218,6 +241,8 @@ export default function App() {
         }))
       );
       setReport(reportData);
+      setPredictionHistory(historyData);
+      setLastUpdatedAt(new Date());
     } catch (err) {
       setError(parseError(err));
       clearSession();
@@ -272,9 +297,35 @@ export default function App() {
     }
   }
 
+  async function handleResolveAlert(alertId) {
+    if (!token || !alertId) return;
+
+    setAlertUpdatingId(alertId);
+    setError("");
+
+    try {
+      await updateAlertStatus(token, alertId, "Resolved");
+      await loadBackendData(token);
+    } catch (err) {
+      setError(parseError(err));
+    } finally {
+      setAlertUpdatingId(null);
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
     loadBackendData(token);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      loadBackendData(token);
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
   }, [token]);
 
   return (
@@ -386,6 +437,45 @@ export default function App() {
           </div>
         </header>
 
+        <section className="filters-row">
+          <label>
+            Alert Severity
+            <select
+              onChange={(event) => setAlertSeverityFilter(event.target.value)}
+              value={alertSeverityFilter}
+            >
+              <option value="all">All</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+            </select>
+          </label>
+          <label>
+            Alert Status
+            <select
+              onChange={(event) => setAlertStatusFilter(event.target.value)}
+              value={alertStatusFilter}
+            >
+              <option value="all">All</option>
+              <option value="open">Open</option>
+              <option value="queued">Queued</option>
+              <option value="investigating">Investigating</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </label>
+          <label>
+            History Label
+            <select
+              onChange={(event) => setHistoryLabelFilter(event.target.value)}
+              value={historyLabelFilter}
+            >
+              <option value="all">All</option>
+              <option value="normal">Normal</option>
+              <option value="malicious">Malicious</option>
+            </select>
+          </label>
+        </section>
+
         <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow">Active Watch</p>
@@ -445,7 +535,11 @@ export default function App() {
                 <p className="eyebrow">Live Feed</p>
                 <h3>Recent predictions</h3>
               </div>
-              <span className="mono">Updated 5s ago</span>
+              <span className="mono">
+                {lastUpdatedAt
+                  ? `Updated ${lastUpdatedAt.toLocaleTimeString()}`
+                  : "Waiting for backend"}
+              </span>
             </div>
             <div className="feed-list">
               {displayFeed.map((item) => (
@@ -588,11 +682,12 @@ export default function App() {
                     <th>Attack</th>
                     <th>Severity</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAlerts.map((row) => (
-                    <tr key={`${row.time}-${row.source}-${row.attack}`}>
+                    <tr key={row.id ?? `${row.time}-${row.source}-${row.attack}`}>
                       <td>{row.time}</td>
                       <td>{row.source}</td>
                       <td>{row.attack}</td>
@@ -600,6 +695,16 @@ export default function App() {
                         <span className={`severity ${row.severity}`}>{capitalize(row.severity)}</span>
                       </td>
                       <td className="status">{row.status}</td>
+                      <td>
+                        <button
+                          className="ghost-button small"
+                          disabled={row.status === "Resolved" || alertUpdatingId === row.id}
+                          onClick={() => handleResolveAlert(row.id)}
+                          type="button"
+                        >
+                          {alertUpdatingId === row.id ? "Saving..." : "Resolve"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -622,6 +727,40 @@ export default function App() {
                 </li>
               ))}
             </ul>
+          </article>
+
+          <article className="panel wide">
+            <div className="panel-head">
+              <div>
+                <p className="eyebrow">Prediction History</p>
+                <h3>Recent inference decisions</h3>
+              </div>
+              <span className="mono">GET /predict/history</span>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Label</th>
+                    <th>Attack</th>
+                    <th>Confidence</th>
+                    <th>Model</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredHistory.slice(0, 10).map((row) => (
+                    <tr key={row.id}>
+                      <td>{new Date(row.predicted_at).toLocaleTimeString()}</td>
+                      <td>{row.predicted_label}</td>
+                      <td>{row.attack_type}</td>
+                      <td>{(row.confidence_score * 100).toFixed(1)}%</td>
+                      <td className="status">{row.model_version}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </article>
         </section>
       </main>
