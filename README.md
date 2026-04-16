@@ -1,121 +1,290 @@
-# NIDS ML Project
+# Network Intrusion Detection System (NIDS) - Full Stack ML Project
 
-This repository contains a full-stack **Network Intrusion Detection System (NIDS)** prototype built with:
+A machine learning-powered web application for network intrusion detection that classifies traffic features as `normal` or `malicious`, stores predictions and alerts, and provides a monitoring dashboard with analytics, exports, and live capture control.
 
-- `React + Vite` frontend
-- `FastAPI` backend
-- `SQLite + SQLAlchemy` persistence
-- `Python + scikit-learn` machine learning
+## Project Overview
 
-The project classifies network traffic as `normal` or `malicious`, stores predictions and alerts, and exposes a dashboard for monitoring, analytics, exports, and model evaluation.
+This project demonstrates an end-to-end ML + web pipeline for intrusion detection:
 
-## Current Implementation
+- Backend: FastAPI REST API with ML inference and database persistence
+- Frontend: React + Vite dashboard
+- ML Model: Random Forest classifier with protocol/flow feature inputs
+- Dataset Pipeline: CSV normalization (including NSL-KDD adaptation) and model retraining
+- Live Capture (MVP): Local packet sniffing with Scapy and automated prediction ingestion
 
-The working system currently includes:
+## Key Features
 
-- JWT login and profile flow
-- Live dashboard summary
-- Prediction request form (`/predict`)
-- Alert creation for malicious predictions
-- Alert resolution workflow
-- Prediction history with server-side filters
-- Analytics timeline with selectable time window
-- Hover tooltip on timeline bars
+- Real-time-ish prediction via API and dashboard inference form
+- Automatic alert generation for malicious predictions
+- Alert workflow with status updates (including resolve)
+- Prediction history with server-side filtering and pagination
+- Analytics timeline with selectable window and hover details
 - CSV exports for alerts, predictions, and analytics
-- Pagination for alerts and prediction history
-- Persisted model evaluation metrics:
-  - accuracy
-  - precision
-  - recall
-  - F1-score
-  - TP / TN / FP / FN
+- Model evaluation panel (accuracy, precision, recall, F1, TP/TN/FP/FN)
+- Live capture controls (`start`, `stop`, `status`) from UI and API
 
 ## Project Structure
 
-- [frontend](D:/ml-project/frontend) React dashboard
-- [backend](D:/ml-project/backend) FastAPI API, ML integration, training scripts
-- [network_intrusion_detection_research.md](D:/ml-project/network_intrusion_detection_research.md) project research summary
-- [nids_full_project_execution_flow.md](D:/ml-project/nids_full_project_execution_flow.md) implementation and execution flow
+```text
+ml-project/
+|-- backend/
+|   |-- app/
+|   |   |-- api/routes/
+|   |   |   |-- auth.py
+|   |   |   |-- dashboard.py
+|   |   |   |-- traffic.py
+|   |   |   |-- predict.py
+|   |   |   |-- alerts.py
+|   |   |   |-- reports.py
+|   |   |   `-- health.py
+|   |   |-- services/
+|   |   |   |-- model_service.py
+|   |   |   |-- prediction_pipeline.py
+|   |   |   `-- live_capture_service.py
+|   |   |-- models/
+|   |   |-- schemas/
+|   |   `-- main.py
+|   |-- scripts/
+|   |   |-- train_demo_model.py
+|   |   |-- train_from_csv.py
+|   |   `-- prepare_dataset_csv.py
+|   |-- data/
+|   |   `-- nids_dataset.csv
+|   |-- artifacts/
+|   |   `-- nids_model.joblib
+|   |-- requirements.txt
+|   |-- DATASET_PREP.md
+|   `-- README.md
+|-- frontend/
+|   |-- src/
+|   |   |-- App.jsx
+|   |   |-- api.js
+|   |   |-- styles.css
+|   |   `-- data.js
+|   |-- package.json
+|   `-- vite.config.js
+|-- network_intrusion_detection_research.md
+|-- nids_full_project_execution_flow.md
+`-- README.md
+```
 
-## Run Locally
+## Tech Stack
 
-### 1. Train the model
+- Backend: Python, FastAPI, SQLAlchemy, PyJWT
+- Frontend: React, Vite
+- ML: scikit-learn, pandas, numpy, joblib
+- Capture: Scapy
+- Database: SQLite (default), configurable via environment
+
+## Installation and Setup
+
+### Prerequisites
+
+- Python 3.10+ recommended
+- Node.js 18+ recommended
+- npm
+- (For live capture on Windows) Npcap installed
+
+### 1. Backend dependencies
+
+```powershell
+cd D:\ml-project\backend
+python -m pip install -r requirements.txt
+```
+
+### 2. Frontend dependencies
+
+```powershell
+cd D:\ml-project\frontend
+npm install
+```
+
+## Model Training
+
+### Option A: Train from prepared dataset
 
 ```powershell
 cd D:\ml-project\backend
 python scripts\train_from_csv.py
 ```
 
-### 2. Start backend
+Expected output (example):
+
+```text
+Saved trained artifact to artifacts\nids_model.joblib
+Validation accuracy: 0.9729
+Rows used: 125973
+```
+
+### Option B: Prepare NSL-KDD raw file and train
 
 ```powershell
 cd D:\ml-project\backend
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python scripts\prepare_dataset_csv.py "data\KDDTrain+.txt" --format nsl-kdd
+python scripts\train_from_csv.py
 ```
 
-### 3. Start frontend
+### Option C: Demo synthetic training
+
+```powershell
+cd D:\ml-project\backend
+python scripts\train_demo_model.py
+```
+
+## Running the Application
+
+### Terminal 1 - Start Backend
+
+```powershell
+cd D:\ml-project\backend
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### Terminal 2 - Start Frontend
 
 ```powershell
 cd D:\ml-project\frontend
-npm run dev -- --host 0.0.0.0 --port 5173
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-### 4. Open the app
+### Access URLs
 
 - Frontend: `http://127.0.0.1:5173`
-- Backend docs: `http://127.0.0.1:8000/docs`
+- Backend docs (Swagger): `http://127.0.0.1:8000/docs`
+- Backend health: `http://127.0.0.1:8000/health`
 
-Login:
+Default login:
 
 - Email: `admin@nidsdemo.com`
 - Password: `admin123`
 
-## Dataset and Model
+## How to Use
 
-Current model training uses:
+1. Login from frontend.
+2. Use `Inference Lab` to submit traffic features.
+3. Check prediction label/confidence and alert creation.
+4. Review `Alert Queue` and resolve incidents.
+5. Track `Prediction History` and `Traffic Timeline`.
+6. Use filters and pagination for data review.
+7. Export CSV reports (alerts, predictions, analytics).
 
-- [nids_dataset.csv](D:/ml-project/backend/data/nids_dataset.csv)
-- [train_from_csv.py](D:/ml-project/backend/scripts/train_from_csv.py)
+## Live Capture (MVP)
 
-Saved artifact:
+This project includes a first live capture pipeline:
 
-- [nids_model.joblib](D:/ml-project/backend/artifacts/nids_model.joblib)
+- Sniffs local IP packets in timed windows
+- Aggregates packets into model input features
+- Persists predictions and alerts automatically
 
-The artifact stores:
+API endpoints:
 
-- model and attack classifier
-- label encoders
-- model version
-- evaluation metrics
+- `POST /traffic/capture/start`
+- `GET /traffic/capture/status`
+- `POST /traffic/capture/stop`
 
-## Main API Areas
+Example start request:
 
-- `/auth/login`
-- `/auth/profile`
-- `/dashboard/summary`
-- `/traffic/live`
-- `/predict`
-- `/predict/history`
-- `/alerts`
-- `/reports/daily`
-- `/reports/analytics`
-- `/reports/model-evaluation`
-- `/reports/export/alerts`
-- `/reports/export/predictions`
-- `/reports/export/analytics`
+```json
+{
+  "interface": null,
+  "interval_seconds": 5
+}
+```
+
+Important notes:
+
+- Windows typically requires Npcap for packet capture.
+- Capture may require running backend with elevated permissions.
+- If capture fails, check `last_error` from capture status endpoint or dashboard.
+
+## Main API Endpoints
+
+- Auth:
+  - `POST /auth/login`
+  - `GET /auth/profile`
+- Dashboard:
+  - `GET /dashboard/summary`
+- Traffic:
+  - `GET /traffic/live`
+  - `POST /traffic/upload`
+  - `POST /traffic/capture/start`
+  - `GET /traffic/capture/status`
+  - `POST /traffic/capture/stop`
+- Prediction:
+  - `POST /predict`
+  - `GET /predict/history`
+- Alerts:
+  - `GET /alerts`
+  - `PATCH /alerts/{alert_id}`
+- Reports:
+  - `GET /reports/daily`
+  - `GET /reports/analytics`
+  - `GET /reports/model-evaluation`
+  - `GET /reports/export/alerts`
+  - `GET /reports/export/predictions`
+  - `GET /reports/export/analytics`
+
+## Model Evaluation and Metrics
+
+The trained artifact stores evaluation metrics surfaced in the dashboard:
+
+- Accuracy
+- Precision
+- Recall
+- F1 Score
+- True Positive / True Negative
+- False Positive / False Negative
+- Dataset and evaluation sample counts
+
+## Troubleshooting
+
+### `Capture Error: Scapy unavailable: No module named 'scapy'`
+
+```powershell
+cd D:\ml-project\backend
+python -m pip install -r requirements.txt
+```
+
+### Capture fails on Windows
+
+- Install Npcap from `https://npcap.com/#download`
+- Restart backend after installation
+- Try running terminal as Administrator
+
+### Backend not reachable from frontend
+
+- Confirm backend is running on port `8000`
+- Confirm frontend uses `http://127.0.0.1:8000` (default in `api.js`)
+- Check browser console and backend terminal logs
+
+### Model files missing or invalid
+
+```powershell
+cd D:\ml-project\backend
+python scripts\train_from_csv.py
+```
+
+## Security Notes
+
+- Current setup is development-focused.
+- Default admin credentials should be overridden for real deployment.
+- Use `.env`-based secrets and stricter CORS/auth hardening before production.
+- Live capture endpoints should be restricted in production environments.
 
 ## Current Status
 
-The project is in a strong prototype state for academic demonstration:
+Current build is a strong academic prototype with:
 
-- frontend and backend are integrated
-- model training and inference are functional
-- reporting and exports are implemented
-- evaluation metrics are visible in the dashboard
+- end-to-end ML inference flow
+- integrated frontend/backend/data pipeline
+- analytics + exports + pagination
+- model evaluation visibility
+- first practical live-capture ingestion path
 
-## Recommended Next Steps
+## Recommended Next Enhancements
 
-- retrain with a larger real dataset
-- move secrets and admin defaults to stricter environment configuration
-- add deployment configuration for public demo hosting
-- update final report screenshots from the running application
+- Add role-based authorization for capture and admin actions
+- Add queue/worker pipeline for higher traffic throughput
+- Add persistent audit logs and better observability
+- Add deployment target (Docker/VPS/cloud) and production config
+- Expand dataset diversity and periodic retraining workflow
